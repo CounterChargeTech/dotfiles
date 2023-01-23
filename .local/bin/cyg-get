@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+# import proxy definition
+[[ -r /etc/profile.d/proxy.sh ]] && . /etc/profile.d/proxy.sh
+
+readonly SUCCESS=0
+readonly ERROR=1
+readonly E_WRONG_ARGS=2
+
+get_current_version()
+{
+  cd /usr/local/bin
+
+  [[ -e setup-x86_64.exe ]] && rm setup-x86_64.exe
+  wget -q http://cygwin.com/setup-x86_64.exe
+  chmod u+x setup-x86_64.exe
+}
+
+main()
+{
+  local all_parameters="$@"
+  local params="-Bnv -R $(cygpath -m /) -l $(cygpath -m /packages) -s http://mirror.rise.ph/cygwin/cygwin/ -O"
+  local packages=
+
+  while :; do
+    case "$1" in
+      install)
+        params="${params} -P"
+        shift
+        # list of comma separated packages
+        packages=$(echo $@|sed -e 's/\s\+/,/g')
+        params="${params} ${packages}"
+        ;;
+      remove)
+        params="${params} -q -x"
+        shift
+        packages=$(echo $@|sed -e 's/\s\+/,/g')
+        params="${params} ${packages}"
+        ;;
+      update)
+        params="${params} -q -g"
+        get_current_version
+        ;;
+      # Unknonw option
+      -?*)
+        echo "unknown option: $1"
+        exit $E_WRONG_ARGS
+        ;;
+      # Default case: If no more options then break out of the loop.
+      *)
+        get_current_version
+        break
+    esac
+    shift
+  done
+
+  run /usr/local/bin/setup-x86_64.exe ${params}
+  exit $SUCCESS
+}
+
+main "$@"
